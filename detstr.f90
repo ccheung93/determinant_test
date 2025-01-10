@@ -11,7 +11,7 @@ program detstr
     Integer, allocatable, dimension(:)   :: idet1, idet2, nfs
 
     integer :: Ne, Nd, Nsu, nf, nf2, j
-    integer, dimension(:,:), allocatable :: Iarr, Barr ! array of int_rep determinants, array of bit_rep determinants
+    integer, dimension(:,:), allocatable :: Iarr, Iarr2, Barr ! array of int_rep determinants, array of bit_rep determinants
 
     integer :: start_time, end_time, clock_rate
     real :: total_time, total_time2
@@ -21,10 +21,12 @@ program detstr
 
     ! Read list of determinants in integer representation
     call system_clock(start_time)
-    Ne = 8
+    print*, 'Enter number of electrons: '
+    read(*,*) Ne
     Open (16,file='CONF.DET',status='UNKNOWN',form='UNFORMATTED')
     Read(16) Nd, n_orbitals
-    allocate(Iarr(Ne,Nd))
+    print*, 'Ns=', n_orbitals
+    allocate(Iarr(Ne,Nd), Iarr2(Ne,Nd))
     Iarr=0
     do i=1,Nd
        read(16) Iarr(1:Ne,i)
@@ -34,6 +36,7 @@ program detstr
 
     print*, 'number of electrons: ', Ne
     print*, 'number of determinants: ', Nd
+    print*, 'number of orbitals: ', n_orbitals
     print*, 'reading Iarr took', end_time - start_time, 'ms'
 
     ! number of integers needed to store all orbitals in bit representation
@@ -59,6 +62,23 @@ program detstr
     end do
     call system_clock(end_time)
     print*, 'converting integer representation to bit representation took', end_time - start_time, 'ms'
+
+    ! convert bit representation to integer representation
+    call system_clock(start_time)
+    do i=1,Nd
+        bdet1 = Barr(1:n_ints, i)
+        call convert_bit_rep_to_int_rep(bdet1, idet1)
+        Iarr2(1:Ne,i) = idet1
+    end do
+    call system_clock(end_time)
+    print*, 'converting bit representation to integer representation took', end_time - start_time, 'ms'
+
+    ! check if converted integer representation is the same as the original
+    if (all(Iarr == Iarr2)) then
+        print*, 'success! Iarr == Iarr2'
+    else
+        print*, 'error! Iarr /= Iarr2'
+    end if
 
     ! Comparison of determinants in integer representation
     call system_clock(start_time)
@@ -191,5 +211,32 @@ contains
         end do
 
     end subroutine convert_int_rep_to_bit_rep
+
+    subroutine convert_bit_rep_to_int_rep(bit_rep, int_rep)
+        implicit none
+        integer, dimension(:), allocatable, intent(in) :: bit_rep ! bit representation
+        integer, dimension(:), allocatable :: int_rep ! integer representation
+        integer :: i, j, cnt, mask, index, bit_position ! loop index, integer index, bit position
+        character(len=bits_per_int) :: bit_int
+
+        ! initialize int representation array to 0
+        int_rep = 0
+
+        ! loop over occupied orbitals and set the corresponding integer positions
+        cnt = 1
+        do i=1, size(bit_rep)
+            continue
+            ! we can skip an '0' elements of the bit_rep since they correspond to no occupancy 
+            if (bit_rep(i) == 0) cycle
+            bit_int = print_bits(bit_rep(i), bits_per_int)
+            do j = 1, bits_per_int
+                if (bit_int(j:j) == '1') then
+                    int_rep(cnt) = j + (i-1)*bits_per_int
+                    cnt = cnt + 1
+                end if
+            end do
+        end do
+
+    end subroutine convert_bit_rep_to_int_rep
 
 end program detstr
