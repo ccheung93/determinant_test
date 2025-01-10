@@ -225,8 +225,7 @@ contains
         ! loop over occupied orbitals and set the corresponding integer positions
         cnt = 1
         do i=1, size(bit_rep)
-            continue
-            ! we can skip an '0' elements of the bit_rep since they correspond to no occupancy 
+            ! we can skip '0' elements of the bit_rep since they correspond to no occupancy 
             if (bit_rep(i) == 0) cycle
             bit_int = print_bits(bit_rep(i), bits_per_int)
             do j = 1, bits_per_int
